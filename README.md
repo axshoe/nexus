@@ -41,7 +41,7 @@ NEXUS runs **4 independent analysis pipelines**, then fuses them into 1 score:
 ## Quick Start
 
 ```bash
-git clone https://github.com/yourusername/nexus-market-intelligence
+git clone git clone https://github.com/axshoe/nexus
 cd nexus-market-intelligence
 npm install
 
@@ -79,4 +79,4 @@ See [docs/README.md](docs/README.md) for the full documentation including all ma
 
 **⚠ Educational tool. Not financial advice.**
 
-MIT License · Built by A.Xiu · 2025
+MIT License · Built by A.Xiu · 2026
