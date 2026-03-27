@@ -1,10 +1,4 @@
 // src/data/finnhub.js
-// ─────────────────────────────────────────────────────────────────────────────
-// Finnhub API wrapper
-// Handles: real-time quotes, 1-year OHLCV candles, company news + sentiment
-// Free tier: 60 req/min — we stay well under that
-// ─────────────────────────────────────────────────────────────────────────────
-
 const axios = require('axios');
 
 const BASE = 'https://finnhub.io/api/v1';
@@ -13,7 +7,6 @@ function headers(key) {
   return { 'X-Finnhub-Token': key };
 }
 
-// ── Real-time quote ──────────────────────────────────────────────────────────
 async function getQuote(symbol, apiKey) {
   const res = await axios.get(`${BASE}/quote`, {
     params: { symbol },
@@ -34,34 +27,32 @@ async function getQuote(symbol, apiKey) {
   };
 }
 
-// ── 1-year daily OHLCV candles ───────────────────────────────────────────────
-async function getCandles(symbol, apiKey, days = 365) {
-  const to = Math.floor(Date.now() / 1000);
-  const from = to - days * 86400;
-  const res = await axios.get(`${BASE}/stock/candle`, {
-    params: { symbol, resolution: 'D', from, to },
-    headers: headers(apiKey),
-    timeout: 10000,
-  });
-  const d = res.data;
-  if (d.s !== 'ok' || !d.c || d.c.length === 0) {
-    throw new Error(`No candle data for ${symbol}. May not be on Finnhub free tier.`);
-  }
-  // Convert parallel arrays to array of objects, sorted by date
-  const candles = d.t.map((ts, i) => ({
-    date: new Date(ts * 1000).toISOString().slice(0, 10),
-    open: d.o[i],
-    high: d.h[i],
-    low: d.l[i],
-    close: d.c[i],
-    volume: d.v[i],
+async function getCandles(symbol, apiKey) {
+  const avKey = process.env.ALPHA_VANTAGE_KEY;
+  const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${avKey}`;
+
+  const res = await axios.get(url, { timeout: 15000 });
+  const json = res.data;
+
+  if (json['Note']) throw new Error('Alpha Vantage rate limit hit. Wait 1 minute and try again.');
+  if (json['Information']) throw new Error('Alpha Vantage: ' + json['Information']);
+  if (json['Error Message']) throw new Error(`Invalid ticker: ${symbol}`);
+
+  const series = json['Time Series (Daily)'];
+  if (!series) throw new Error('No historical data returned from Alpha Vantage.');
+
+  const dates = Object.keys(series).sort();
+  return dates.slice(-365).map(date => ({
+    date,
+    open:   parseFloat(series[date]['1. open']),
+    high:   parseFloat(series[date]['2. high']),
+    low:    parseFloat(series[date]['3. low']),
+    close:  parseFloat(series[date]['4. close']),
+    volume: parseFloat(series[date]['5. volume']),
   }));
-  return candles.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-// ── Company news + sentiment ─────────────────────────────────────────────────
 async function getNewsSentiment(symbol, apiKey) {
-  // Get company-specific news from last 7 days
   const to = new Date().toISOString().slice(0, 10);
   const from = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
 
@@ -71,14 +62,12 @@ async function getNewsSentiment(symbol, apiKey) {
     timeout: 8000,
   });
 
-  const articles = res.data.slice(0, 20); // top 20 recent articles
+  const articles = res.data.slice(0, 20);
 
   if (!articles.length) {
     return { score: 0, label: 'Neutral', articleCount: 0, headlines: [] };
   }
 
-  // Finnhub returns sentiment in the article objects as `sentiment` field
-  // We also do basic keyword scoring as a sanity check
   const positiveWords = ['beat', 'surge', 'record', 'growth', 'profit', 'upgrade', 'gain', 'rally', 'strong', 'buy'];
   const negativeWords = ['miss', 'fall', 'loss', 'downgrade', 'cut', 'weak', 'decline', 'concern', 'risk', 'sell'];
 
@@ -91,8 +80,8 @@ async function getNewsSentiment(symbol, apiKey) {
     totalScore += score;
   });
 
-  const normalized = totalScore / articles.length; // range ~-3 to +3
-  const clampedScore = Math.max(-1, Math.min(1, normalized / 3)); // normalize to -1..1
+  const normalized = totalScore / articles.length;
+  const clampedScore = Math.max(-1, Math.min(1, normalized / 3));
 
   let label;
   if (clampedScore > 0.25) label = 'Positive';
@@ -111,7 +100,6 @@ async function getNewsSentiment(symbol, apiKey) {
   };
 }
 
-// ── Company profile (name, sector, market cap) ───────────────────────────────
 async function getProfile(symbol, apiKey) {
   try {
     const res = await axios.get(`${BASE}/stock/profile2`, {

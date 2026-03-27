@@ -341,7 +341,7 @@ function renderFooter(symbol, durationMs) {
   console.log('\n' + chalk.cyan('─'.repeat(width)));
   console.log(`  ${C.dim(`Analysis complete for ${symbol} in ${(durationMs / 1000).toFixed(1)}s`)}`);
   console.log(`  ${C.dim('⚠  NEXUS is a research tool. Not financial advice.')}`);
-  console.log(`  ${C.dim('   github.com/yourusername/nexus-market-intelligence')}`);
+  console.log(`  ${C.dim('     github.com/axshoe/nexus')}`);
   console.log(chalk.cyan('─'.repeat(width)) + '\n');
 }
 

@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 // src/index.js
 // ─────────────────────────────────────────────────────────────────────────────
 // NEXUS Market Intelligence System — Entry Point
@@ -93,13 +95,13 @@ async function analyze(symbol, opts = {}) {
       try {
         candles = await getCandles(symbol, FINNHUB_KEY);
       } catch (e) {
-        console.log(chalk.yellow('  Note: Using synthetic price history (Finnhub candles need paid tier)'));
+          console.log(chalk.yellow('  Note: Using synthetic price history (Alpha Vantage fetch failed)'));
         candles = generateDemoCandles(252);
       }
     }
   } catch (err) {
     spinner.fail(chalk.red(`Market data error: ${err.message}`));
-    console.log(chalk.gray('\nTip: Run with --demo flag to test without API keys: node src/index.js AAPL --demo'));
+    console.log(chalk.gray('\nTip: Run with --demo flag to test without API keys: nexus AAPL --demo'));
     process.exit(1);
   }
 
